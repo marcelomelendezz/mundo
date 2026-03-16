@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SOMOS · Editor de Mundos</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0c07;--panel:#1a150a;--border:#3a2a10;
+  --gold:#c8a84a;--gold2:#f0d070;--muted:rgba(200,168,80,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+  font-family:'Cinzel',serif;user-select:none;}
+#app{display:flex;flex-direction:column;width:100%;height:100%;}
+
+/* ══ TOP BAR ══ */
+#topbar{
+  flex-shrink:0;height:42px;
+  background:linear-gradient(180deg,#241808,#1a1208);
+  border-bottom:2px solid var(--border);
+  display:flex;align-items:center;gap:0;overflow-x:auto;overflow-y:hidden;
+}
+#topbar::-webkit-scrollbar{height:0;}
+.tbtn{
+  height:42px;padding:0 12px;cursor:pointer;font-family:'Cinzel',serif;
+  font-size:clamp(8px,2.2vw,11px);font-weight:600;letter-spacing:1px;
+  background:transparent;border:none;color:var(--muted);white-space:nowrap;
+  border-right:1px solid var(--border);transition:all 0.12s;flex-shrink:0;
+  display:flex;align-items:center;gap:5px;
+}
+.tbtn:hover{background:rgba(200,168,80,0.08);color:var(--gold);}
+.tbtn:active{background:rgba(200,168,80,0.15);}
+.tbtn.active{background:rgba(200,168,80,0.14);color:var(--gold2);border-bottom:2px solid var(--gold);}
+.tbtn .icon{font-size:14px;}
+#world-title{
+  padding:0 14px;font-family:'Cinzel Decorative',serif;
+  font-size:clamp(9px,2.5vw,13px);color:var(--gold);letter-spacing:2px;
+  white-space:nowrap;flex-shrink:0;cursor:text;border-right:1px solid var(--border);
+  height:42px;display:flex;align-items:center;
+}
+#world-title:focus{outline:none;color:var(--gold2);}
+.sep{width:1px;height:42px;background:var(--border);flex-shrink:0;}
+.tbtn-group{display:flex;}
+
+/* ══ MAIN ══ */
+#main{flex:1;min-height:0;display:flex;overflow:hidden;}
+
+/* ══ LEFT TOOLBAR ══ */
+#toolbar{
+  flex-shrink:0;width:52px;background:var(--panel);
+  border-right:2px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 0;gap:2px;overflow-y:auto;
+}
+#toolbar::-webkit-scrollbar{width:0;}
+.tool{
+  width:40px;height:40px;border-radius:8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:1.5px solid transparent;background:transparent;
+  transition:all 0.1s;font-size:17px;gap:1px;
+}
+.tool .tlbl{font-size:5px;color:rgba(200,168,80,0.4);letter-spacing:0.5px;line-height:1;}
+.tool:hover{background:rgba(200,168,80,0.1);border-color:rgba(200,168,80,0.2);}
+.tool.active{background:rgba(200,168,80,0.2);border-color:var(--gold);
+  box-shadow:0 0 8px rgba(200,168,80,0.2);}
+.tool:active{transform:scale(0.93);}
+.tool-sep{width:30px;height:1px;background:var(--border);margin:3px 0;}
+
+/* ══ CANVAS ══ */
+#canvas-wrap{
+  flex:1;min-width:0;position:relative;overflow:hidden;
+  background:#0a0806;cursor:crosshair;
+}
+#canvas-wrap.pan-mode{cursor:grab;}
+#canvas-wrap.pan-mode.dragging{cursor:grabbing;}
+#map-canvas{display:block;image-rendering:pixelated;}
+
+/* ══ RIGHT PANEL ══ */
+#right-panel{
+  flex-shrink:0;width:clamp(160px,26vw,210px);
+  background:var(--panel);border-left:2px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.rp-section{border-bottom:1px solid var(--border);padding:8px;}
+.rp-title{font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:6px;
+  text-transform:uppercase;}
+
+/* Brush size */
+.brush-row{display:flex;align-items:center;gap:6px;}
+.brush-row label{font-size:8px;color:var(--muted);width:32px;}
+.brush-row input{flex:1;accent-color:var(--gold);}
+.brush-row .bval{font-size:9px;color:var(--gold);width:20px;text-align:right;}
+
+/* Biome palette */
+#biome-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.bswatch{
+  aspect-ratio:1;border-radius:4px;cursor:pointer;
+  border:2px solid transparent;transition:all 0.08s;
+  display:flex;align-items:center;justify-content:center;font-size:9px;
+  position:relative;
+}
+.bswatch:hover{transform:scale(1.1);border-color:rgba(255,255,255,0.4);}
+.bswatch.sel{border-color:#fff;transform:scale(1.12);
+  box-shadow:0 0 8px rgba(255,255,255,0.3);}
+.bswatch .bs-tip{
+  display:none;position:absolute;bottom:calc(100%+4px);left:50%;
+  transform:translateX(-50%);background:rgba(0,0,0,0.9);border:1px solid var(--border);
+  color:var(--gold);font-size:7px;padding:2px 5px;border-radius:3px;white-space:nowrap;
+  pointer-events:none;z-index:20;letter-spacing:0.5px;
+}
+.bswatch:hover .bs-tip{display:block;}
+
+/* Layers */
+#layers-list{display:flex;flex-direction:column;gap:3px;}
+.layer-item{
+  display:flex;align-items:center;gap:5px;padding:4px 5px;
+  border-radius:5px;cursor:pointer;border:1px solid transparent;
+  font-size:9px;color:var(--muted);transition:all 0.08s;
+}
+.layer-item:hover{background:rgba(200,168,80,0.08);}
+.layer-item.active{background:rgba(200,168,80,0.15);border-color:rgba(200,168,80,0.3);color:var(--gold);}
+.layer-vis{font-size:11px;width:16px;text-align:center;cursor:pointer;flex-shrink:0;}
+.layer-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Labels list */
+#labels-list{flex:1;overflow-y:auto;padding:6px;}
+#labels-list::-webkit-scrollbar{width:3px;}
+#labels-list::-webkit-scrollbar-thumb{background:rgba(200,168,80,0.2);}
+.label-item{
+  display:flex;align-items:center;gap:5px;padding:4px 6px;
+  border-radius:5px;cursor:pointer;font-size:9px;color:var(--muted);
+  border:1px solid transparent;margin-bottom:2px;
+}
+.label-item:hover{background:rgba(200,168,80,0.08);border-color:rgba(200,168,80,0.15);}
+.label-item .li-icon{font-size:12px;flex-shrink:0;}
+.label-item .li-name{flex:1;overflow:hidden;text-overflow:ellipsis;color:var(--gold);}
+.label-item .li-del{opacity:0;font-size:10px;color:#aa4444;transition:opacity 0.1s;}
+.label-item:hover .li-del{opacity:1;}
+
+/* ══ TOOLTIP ══ */
+#tooltip{
+  position:absolute;pointer-events:none;z-index:30;
+  background:rgba(10,8,4,0.95);border:1px solid rgba(200,168,80,0.3);
+  border-radius:6px;padding:5px 9px;
+  font-size:9px;color:var(--gold);letter-spacing:0.5px;
+  display:none;white-space:nowrap;
+  box-shadow:0 4px 16px rgba(0,0,0,0.5);
+}
+
+/* ══ MODAL / INPUT ══ */
+#input-modal{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(10,8,4,0.88);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+}
+#input-modal.show{display:flex;}
+#input-box{
+  background:linear-gradient(145deg,#241808,#1a1008);
+  border:1px solid rgba(200,168,80,0.3);border-radius:14px;
+  padding:20px;width:280px;
+  box-shadow:0 0 40px rgba(200,168,80,0.1);
+}
+#input-box h3{font-size:13px;color:var(--gold2);margin-bottom:10px;
+  letter-spacing:1px;text-align:center;}
+#input-text{
+  width:100%;background:rgba(0,0,0,0.4);border:1px solid rgba(200,168,80,0.25);
+  color:var(--gold2);font-family:'Cinzel',serif;font-size:12px;
+  padding:8px 12px;border-radius:7px;outline:none;margin-bottom:10px;
+}
+#input-text:focus{border-color:rgba(200,168,80,0.55);}
+.input-btns{display:flex;gap:7px;}
+.ibtn{flex:1;padding:8px;border-radius:7px;cursor:pointer;font-family:'Cinzel',serif;
+  font-size:10px;font-weight:700;letter-spacing:1px;border:none;transition:all 0.1s;}
+.ibtn.ok{background:linear-gradient(135deg,#5a3010,#3a1a05);color:var(--gold);
+  border:1px solid rgba(200,168,80,0.3);}
+.ibtn.cancel{background:rgba(255,255,255,0.06);color:var(--muted);
+  border:1px solid rgba(255,255,255,0.1);}
+.ibtn:active{transform:scale(0.96);}
+
+/* ══ BOTTOM STATUS ══ */
+#statusbar{
+  flex-shrink:0;height:20px;background:#100c06;border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 10px;gap:16px;
+}
+.sb-item{font-size:8px;color:rgba(200,168,80,0.35);letter-spacing:1px;}
+.sb-item span{color:rgba(200,168,80,0.6);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div id="world-title" contenteditable="true" spellcheck="false">Reinos de Aelanor</div>
+    <div class="tbtn-group">
+      <button class="tbtn active" id="btn-generate"><span class="icon">✦</span>GENERAR</button>
+      <button class="tbtn" id="btn-clear"><span class="icon">🗑</span>LIMPIAR</button>
+    </div>
+    <div class="sep"></div>
+    <div class="tbtn-group">
+      <button class="tbtn" id="btn-undo"><span class="icon">↩</span>DESHACER</button>
+    </div>
+    <div class="sep"></div>
+    <div class="tbtn-group">
+      <button class="tbtn" id="btn-save"><span class="icon">💾</span>GUARDAR PNG</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <!-- LEFT TOOLBAR -->
+    <div id="toolbar">
+      <div class="tool active" data-tool="paint" title="Pintar bioma">🖌<div class="tlbl">PINTA</div></div>
+      <div class="tool" data-tool="fill"  title="Rellenar área">🪣<div class="tlbl">RELLE</div></div>
+      <div class="tool" data-tool="erase" title="Borrar">⬜<div class="tlbl">BORRA</div></div>
+      <div class="tool-sep"></div>
+      <div class="tool" data-tool="river"  title="Dibujar río">〜<div class="tlbl">RÍO</div></div>
+      <div class="tool" data-tool="road"   title="Dibujar ruta">━<div class="tlbl">RUTA</div></div>
+      <div class="tool-sep"></div>
+      <div class="tool" data-tool="city"    title="Colocar ciudad">🏰<div class="tlbl">CIUD</div></div>
+      <div class="tool" data-tool="village" title="Colocar aldea">🏘<div class="tlbl">ALDEA</div></div>
+      <div class="tool" data-tool="ruin"    title="Colocar ruinas">🏚<div class="tlbl">RUINA</div></div>
+      <div class="tool" data-tool="dungeon" title="Colocar mazmorra">⚔<div class="tlbl">MAZM</div></div>
+      <div class="tool" data-tool="port"    title="Colocar puerto">⚓<div class="tlbl">PUER</div></div>
+      <div class="tool" data-tool="tower"   title="Colocar torre">🗼<div class="tlbl">TORRE</div></div>
+      <div class="tool" data-tool="volcano" title="Colocar volcán">🌋<div class="tlbl">VOLC</div></div>
+      <div class="tool" data-tool="dragon"  title="Colocar dragón">🐉<div class="tlbl">DRAG</div></div>
+      <div class="tool-sep"></div>
+      <div class="tool" data-tool="label"  title="Añadir nombre/etiqueta">🏷<div class="tlbl">NOMB</div></div>
+      <div class="tool-sep"></div>
+      <div class="tool" data-tool="pan"    title="Navegar">✋<div class="tlbl">MOVER</div></div>
+    </div>
+
+    <!-- MAP -->
+    <div id="canvas-wrap">
+      <canvas id="map-canvas"></canvas>
+      <div id="tooltip"></div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="right-panel">
+
+      <!-- Biome palette -->
+      <div class="rp-section">
+        <div class="rp-title">🎨 BIOMA</div>
+        <div id="biome-grid"></div>
+      </div>
+
+      <!-- Brush size -->
+      <div class="rp-section">
+        <div class="rp-title">🖌 PINCEL</div>
+        <div class="brush-row">
+          <label>Tamaño</label>
+          <input type="range" id="brush-size" min="1" max="12" value="3">
+          <span class="bval" id="brush-val">3</span>
+        </div>
+        <div class="brush-row" style="margin-top:5px;">
+          <label>Forma</label>
+          <select id="brush-shape" style="flex:1;font-size:9px;height:20px;">
+            <option value="circle">Círculo</option>
+            <option value="square">Cuadrado</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Layers -->
+      <div class="rp-section">
+        <div class="rp-title">📚 CAPAS</div>
+        <div id="layers-list">
+          <div class="layer-item active" data-layer="terrain">
+            <span class="layer-vis">👁</span><span class="layer-name">Terreno</span>
+          </div>
+          <div class="layer-item" data-layer="water">
+            <span class="layer-vis">👁</span><span class="layer-name">Agua / Ríos</span>
+          </div>
+          <div class="layer-item" data-layer="paths">
+            <span class="layer-vis">👁</span><span class="layer-name">Rutas</span>
+          </div>
+          <div class="layer-item" data-layer="markers">
+            <span class="layer-vis">👁</span><span class="layer-name">Marcadores</span>
+          </div>
+          <div class="layer-item" data-layer="labels">
+            <span class="layer-vis">👁</span><span class="layer-name">Nombres</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Labels/markers list -->
+      <div class="rp-title" style="padding:6px 8px 0;font-size:7px;color:var(--muted);letter-spacing:2px;">📍 LUGARES</div>
+      <div id="labels-list"></div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <div class="sb-item">POS <span id="sb-pos">—</span></div>
+    <div class="sb-item">BIOMA <span id="sb-biome">—</span></div>
+    <div class="sb-item">ZOOM <span id="sb-zoom">100%</span></div>
+    <div class="sb-item" style="margin-left:auto;">Arrastra · Scroll para zoom · Clic para pintar</div>
+  </div>
+</div>
+
+<!-- Input modal -->
+<div id="input-modal">
+  <div id="input-box">
+    <h3 id="input-title">NOMBRE DEL LUGAR</h3>
+    <input id="input-text" type="text" maxlength="30" placeholder="Ej: Castillo de la Roca Negra">
+    <div class="input-btns">
+      <button class="ibtn ok" id="input-ok">✦ CONFIRMAR</button>
+      <button class="ibtn cancel" id="input-cancel">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// BIOME DEFINITIONS
+// ══════════════════════════════════════════════════════════
+const BIOMES = [
+  {id:'deep_ocean',  name:'Océano Prof.',icon:'🌊',r:18, g:45, b:100},
+  {id:'ocean',       name:'Mar',         icon:'🌊',r:30, g:75, b:148},
+  {id:'shallow',     name:'Aguas Som.',  icon:'💧',r:55, g:115,b:175},
+  {id:'beach',       name:'Playa',       icon:'🏖',r:205,g:190,b:120},
+  {id:'grassland',   name:'Llanura',     icon:'🌾',r:88, g:148,b:65},
+  {id:'forest',      name:'Bosque',      icon:'🌲',r:42, g:110,b:48},
+  {id:'dense_forest',name:'Bosque Den.', icon:'🌳',r:28, g:80, b:35},
+  {id:'jungle',      name:'Jungla',      icon:'🌴',r:22, g:92, b:28},
+  {id:'savanna',     name:'Sabana',      icon:'🦁',r:178,g:160,b:70},
+  {id:'desert',      name:'Desierto',    icon:'🏜',r:215,g:195,b:110},
+  {id:'arid',        name:'Árido',       icon:'🌵',r:230,g:200,b:105},
+  {id:'swamp',       name:'Pantano',     icon:'🐊',r:55, g:80, b:48},
+  {id:'tundra',      name:'Tundra',      icon:'🥶',r:155,g:165,b:145},
+  {id:'taiga',       name:'Taiga',       icon:'🎄',r:55, g:90, b:60},
+  {id:'hills',       name:'Colinas',     icon:'⛰',r:105,g:115,b:85},
+  {id:'mountain',    name:'Montaña',     icon:'🏔',r:125,g:125,b:105},
+  {id:'snow_peak',   name:'Cima Nevada', icon:'❄',r:240,g:242,b:245},
+  {id:'volcanic',    name:'Volcánico',   icon:'🌋',r:90, g:28, b:18},
+  {id:'lava',        name:'Lava',        icon:'🔥',r:200,g:60, b:15},
+  {id:'ice',         name:'Hielo',       icon:'🧊',r:200,g:220,b:240},
+];
+
+const MARKER_TYPES = {
+  city:    {icon:'🏰',label:'Ciudad',  size:16},
+  village: {icon:'🏘',label:'Aldea',   size:13},
+  ruin:    {icon:'🏚',label:'Ruinas',  size:13},
+  dungeon: {icon:'⚔', label:'Mazmorra',size:13},
+  port:    {icon:'⚓', label:'Puerto',  size:13},
+  tower:   {icon:'🗼',label:'Torre',   size:13},
+  volcano: {icon:'🌋',label:'Volcán',  size:14},
+  dragon:  {icon:'🐉',label:'Dragón',  size:15},
+};
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const GRID = 128; // World grid size
+let terrain = new Uint8Array(GRID*GRID); // biome index per cell
+let waterLayer = []; // [{x,y,type:'river'|'lake'}]
+let pathLayer  = []; // [{points:[{x,y}...],type:'road'|'river'}]
+let markers    = []; // [{x,y,type,name}]
+let labelsList = []; // [{x,y,text,size}]
+
+let currentTool = 'paint';
+let currentBiome = 4; // grassland
+let brushSize = 3;
+let brushShape = 'circle';
+let history = [];
+let visibleLayers = {terrain:true,water:true,paths:true,markers:true,labels:true};
+
+// View
+let viewX=0,viewY=0,viewZoom=1;
+let isPainting=false;
+let panDrag={active:false,sx:0,sy:0,ox:0,oy:0};
+let drawingPath=null; // for river/road drawing
+
+// Perlin for generation
+class Perlin{
+  constructor(s=0){
+    this.p=new Uint8Array(512);const q=new Uint8Array(256);
+    for(let i=0;i<256;i++)q[i]=i;
+    let seed=s^0xdeadbeef;
+    const r=()=>{seed=Math.imul(seed^(seed>>>15),seed|1);seed^=seed+Math.imul(seed^(seed>>>7),seed|61);return((seed^(seed>>>14))>>>0)/4294967296;};
+    for(let i=255;i>0;i--){const j=Math.floor(r()*(i+1));[q[i],q[j]]=[q[j],q[i]];}
+    for(let i=0;i<512;i++)this.p[i]=q[i&255];
+  }
+  fade(t){return t*t*t*(t*(t*6-15)+10);}
+  lerp(a,b,t){return a+(b-a)*t;}
+  grad(h,x,y){const v=h&3;const u=v<2?x:y,w=v<2?y:x;return((h&1)?-u:u)+((h&2)?-w:w);}
+  n(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=this.fade(x),v=this.fade(y);const a=this.p[X]+Y,b=this.p[X+1]+Y;return this.lerp(this.lerp(this.grad(this.p[a],x,y),this.grad(this.p[b],x-1,y),u),this.lerp(this.grad(this.p[a+1],x,y-1),this.grad(this.p[b+1],x-1,y-1),u),v);}
+  o(x,y,oct=6){let v=0,a=1,f=1,m=0;for(let i=0;i<oct;i++){v+=this.n(x*f,y*f)*a;m+=a;a*=0.52;f*=2.1;}return v/m;}
+}
+
+// ══════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ══════════════════════════════════════════════════════════
+const canvas = document.getElementById('map-canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+
+function resizeCanvas(){
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// Compute cell size based on zoom
+function cellSize(){ return viewZoom; }
+
+// Convert world→screen
+function w2s(wx,wy){ return {x:wx*viewZoom+viewX, y:wy*viewZoom+viewY}; }
+// Convert screen→world
+function s2w(sx,sy){ return {x:(sx-viewX)/viewZoom, y:(sy-viewY)/viewZoom}; }
+function s2wCell(sx,sy){ const p=s2w(sx,sy); return {x:Math.floor(p.x),y:Math.floor(p.y)}; }
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+let renderScheduled = false;
+function scheduleRender(){ if(!renderScheduled){renderScheduled=true;requestAnimationFrame(()=>{render();renderScheduled=false;});}}
+
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#0a0806';ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Draw terrain
+  if(visibleLayers.terrain){
+    const cs=viewZoom;
+    // Use createImageData for speed when zoom ~1px
+    if(cs<3){
+      // Fast pixel rendering
+      const offW=Math.min(GRID,Math.ceil(canvas.width/cs)+2);
+      const offH=Math.min(GRID,Math.ceil(canvas.height/cs)+2);
+      const startX=Math.max(0,Math.floor(-viewX/cs));
+      const startY=Math.max(0,Math.floor(-viewY/cs));
+      const endX=Math.min(GRID,startX+offW);
+      const endY=Math.min(GRID,startY+offH);
+      const iw=endX-startX, ih=endY-startY;
+      if(iw>0&&ih>0){
+        const imgData=ctx.createImageData(iw,ih);
+        const d=imgData.data;
+        for(let gy=startY;gy<endY;gy++){
+          for(let gx=startX;gx<endX;gx++){
+            const bi=terrain[gy*GRID+gx];
+            const b=BIOMES[bi]||BIOMES[0];
+            const pi=((gy-startY)*iw+(gx-startX))*4;
+            d[pi]=b.r;d[pi+1]=b.g;d[pi+2]=b.b;d[pi+3]=255;
+          }
+        }
+        // Scale and draw
+        const tmp=document.createElement('canvas');tmp.width=iw;tmp.height=ih;
+        tmp.getContext('2d').putImageData(imgData,0,0);
+        ctx.save();ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(tmp,startX*cs+viewX,startY*cs+viewY,iw*cs,ih*cs);
+        ctx.restore();
+      }
+    } else {
+      // High zoom: draw individual rects
+      const startX=Math.max(0,Math.floor(-viewX/cs));
+      const startY=Math.max(0,Math.floor(-viewY/cs));
+      const endX=Math.min(GRID,startX+Math.ceil(canvas.width/cs)+2);
+      const endY=Math.min(GRID,startY+Math.ceil(canvas.height/cs)+2);
+      for(let gy=startY;gy<endY;gy++){
+        for(let gx=startX;gx<endX;gx++){
+          const bi=terrain[gy*GRID+gx];
+          const b=BIOMES[bi]||BIOMES[0];
+          ctx.fillStyle=`rgb(${b.r},${b.g},${b.b})`;
+          ctx.fillRect(gx*cs+viewX,gy*cs+viewY,cs+0.5,cs+0.5);
+        }
+      }
+      // Grid lines at high zoom
+      if(cs>12){
+        ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=0.5;
+        for(let gx=startX;gx<=endX;gx++){ctx.beginPath();ctx.moveTo(gx*cs+viewX,startY*cs+viewY);ctx.lineTo(gx*cs+viewX,endY*cs+viewY);ctx.stroke();}
+        for(let gy=startY;gy<=endY;gy++){ctx.beginPath();ctx.moveTo(startX*cs+viewX,gy*cs+viewY);ctx.lineTo(endX*cs+viewX,gy*cs+viewY);ctx.stroke();}
+      }
+    }
+  }
+
+  // Draw paths (rivers & roads)
+  if(visibleLayers.paths||visibleLayers.water){
+    pathLayer.forEach(path=>{
+      if(path.points.length<2)return;
+      if(path.type==='river'&&!visibleLayers.water)return;
+      if(path.type==='road'&&!visibleLayers.paths)return;
+      ctx.save();
+      if(path.type==='river'){
+        ctx.strokeStyle='rgba(55,125,175,0.9)';
+        ctx.lineWidth=Math.max(1.5,viewZoom*0.55);
+        ctx.lineCap='round';ctx.lineJoin='round';
+        // Glow
+        ctx.shadowColor='rgba(55,125,200,0.4)';ctx.shadowBlur=Math.max(2,viewZoom);
+      } else {
+        ctx.strokeStyle='rgba(160,130,70,0.75)';
+        ctx.lineWidth=Math.max(1,viewZoom*0.4);
+        ctx.setLineDash([viewZoom*1.5,viewZoom*1.5]);
+        ctx.lineCap='round';
+      }
+      ctx.beginPath();
+      path.points.forEach((p,i)=>{
+        const s=w2s(p.x+0.5,p.y+0.5);
+        i===0?ctx.moveTo(s.x,s.y):ctx.lineTo(s.x,s.y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Active drawing path
+    if(drawingPath&&drawingPath.points.length>1){
+      ctx.save();
+      ctx.strokeStyle=drawingPath.type==='river'?'rgba(55,125,175,0.6)':'rgba(160,130,70,0.6)';
+      ctx.lineWidth=Math.max(1.5,viewZoom*0.5);
+      ctx.setLineDash(drawingPath.type==='road'?[3,3]:[]);
+      ctx.lineCap='round';ctx.beginPath();
+      drawingPath.points.forEach((p,i)=>{
+        const s=w2s(p.x+0.5,p.y+0.5);
+        i===0?ctx.moveTo(s.x,s.y):ctx.lineTo(s.x,s.y);
+      });
+      ctx.stroke();ctx.restore();
+    }
+  }
+
+  // Draw markers
+  if(visibleLayers.markers){
+    markers.forEach(m=>{
+      const mt=MARKER_TYPES[m.type];if(!mt)return;
+      const s=w2s(m.x+0.5,m.y+0.5);
+      const fs=Math.max(10,mt.size*(viewZoom*0.35+0.65));
+      // Glow bg
+      ctx.save();
+      ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=6;
+      ctx.font=`${fs}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(mt.icon,s.x,s.y);
+      ctx.restore();
+    });
+  }
+
+  // Draw labels
+  if(visibleLayers.labels){
+    labelsList.forEach(lb=>{
+      const s=w2s(lb.x,lb.y);
+      const fs=Math.max(8,lb.size*(viewZoom*0.3+0.7));
+      ctx.save();
+      ctx.font=`${lb.style||'600'} ${fs}px Cinzel,serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      // Shadow
+      ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText(lb.text,s.x+0.8,s.y+0.8);
+      ctx.fillStyle=lb.color||'#f0d870';
+      ctx.fillText(lb.text,s.x,s.y);
+      ctx.restore();
+    });
+
+    // Marker names (at higher zoom)
+    if(viewZoom>2.5){
+      markers.forEach(m=>{
+        if(!m.name)return;
+        const s=w2s(m.x+0.5,m.y+0.5);
+        const fs=Math.max(8,10*(viewZoom*0.25+0.75));
+        ctx.save();
+        ctx.font=`600 ${fs}px Cinzel,serif`;
+        ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillText(m.name,s.x+0.5,s.y+14*viewZoom*0.3+0.5);
+        ctx.fillStyle='#f0d870';ctx.fillText(m.name,s.x,s.y+14*viewZoom*0.3);
+        ctx.restore();
+      });
+    }
+  }
+
+  // Brush preview
+  if(currentTool==='paint'||currentTool==='erase'){
+    // Drawn in mouse move
+  }
+
+  // Vignette
+  const vg=ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.width*0.3,canvas.width/2,canvas.height/2,canvas.width*0.72);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.35)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+// ══════════════════════════════════════════════════════════
+// PAINTING
+// ══════════════════════════════════════════════════════════
+function paintAt(sx,sy){
+  const {x:cx,y:cy}=s2wCell(sx,sy);
+  if(currentTool==='paint'||currentTool==='erase'){
+    saveHistory();
+    const bs=brushSize;
+    for(let dy=-bs;dy<=bs;dy++){
+      for(let dx=-bs;dx<=bs;dx++){
+        const gx=cx+dx,gy=cy+dy;
+        if(gx<0||gx>=GRID||gy<0||gy>=GRID)continue;
+        const dist=brushShape==='circle'?Math.sqrt(dx*dx+dy*dy):Math.max(Math.abs(dx),Math.abs(dy));
+        if(dist<=bs){
+          terrain[gy*GRID+gx]=currentTool==='erase'?1:currentBiome;
+        }
+      }
+    }
+    scheduleRender();
+  }
+}
+
+function floodFill(sx,sy){
+  const {x:cx,y:cy}=s2wCell(sx,sy);
+  if(cx<0||cx>=GRID||cy<0||cy>=GRID)return;
+  const targetBiome=terrain[cy*GRID+cx];
+  if(targetBiome===currentBiome)return;
+  saveHistory();
+  const stack=[[cx,cy]];
+  const visited=new Uint8Array(GRID*GRID);
+  while(stack.length){
+    const [x,y]=stack.pop();
+    if(x<0||x>=GRID||y<0||y>=GRID)continue;
+    const idx=y*GRID+x;
+    if(visited[idx]||terrain[idx]!==targetBiome)continue;
+    visited[idx]=1;
+    terrain[idx]=currentBiome;
+    stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  scheduleRender();
+}
+
+// ══════════════════════════════════════════════════════════
+// PATH DRAWING (rivers/roads)
+// ══════════════════════════════════════════════════════════
+function startPath(sx,sy){
+  const {x,y}=s2wCell(sx,sy);
+  drawingPath={type:currentTool,points:[{x,y}]};
+}
+function extendPath(sx,sy){
+  if(!drawingPath)return;
+  const {x,y}=s2wCell(sx,sy);
+  const last=drawingPath.points[drawingPath.points.length-1];
+  if(x!==last.x||y!==last.y) drawingPath.points.push({x,y});
+  scheduleRender();
+}
+function endPath(){
+  if(!drawingPath||drawingPath.points.length<2){drawingPath=null;return;}
+  pathLayer.push({...drawingPath});
+  drawingPath=null;
+  scheduleRender();
+}
+
+// ══════════════════════════════════════════════════════════
+// PLACE MARKER
+// ══════════════════════════════════════════════════════════
+let pendingMarker=null;
+function placeMarker(sx,sy){
+  const {x,y}=s2wCell(sx,sy);
+  pendingMarker={x,y,type:currentTool};
+  showInputModal('NOMBRE DEL LUGAR', MARKER_TYPES[currentTool]?.label||'Lugar', (name)=>{
+    if(name){
+      markers.push({x,y,type:currentTool,name});
+      updateLabelsList();
+      scheduleRender();
+    }
+    pendingMarker=null;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// PLACE LABEL
+// ══════════════════════════════════════════════════════════
+function placeLabel(sx,sy){
+  const p=s2w(sx,sy);
+  showInputModal('TEXTO DEL NOMBRE', 'Ej: Bosque de Elendil', (text)=>{
+    if(text){
+      const size=text.length>12?10:12;
+      labelsList.push({x:p.x,y:p.y,text,size,color:'#f0d870'});
+      updateLabelsList();
+      scheduleRender();
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// MOUSE / TOUCH EVENTS
+// ══════════════════════════════════════════════════════════
+function getCanvasPos(e){
+  const r=canvas.getBoundingClientRect();
+  const src=e.touches?e.touches[0]:(e.changedTouches?e.changedTouches[0]:e);
+  return{x:src.clientX-r.left,y:src.clientY-r.top};
+}
+
+canvas.addEventListener('mousedown',onDown);
+canvas.addEventListener('mousemove',onMove);
+canvas.addEventListener('mouseup',onUp);
+canvas.addEventListener('mouseleave',onUp);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();onDown(e);},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e);},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();onUp(e);},{passive:false});
+
+function onDown(e){
+  const {x,y}=getCanvasPos(e);
+  if(currentTool==='pan'){
+    panDrag={active:true,sx:x,sy:y,ox:viewX,oy:viewY};
+    wrap.classList.add('dragging');return;
+  }
+  if(currentTool==='paint'||currentTool==='erase'){
+    isPainting=true;paintAt(x,y);return;
+  }
+  if(currentTool==='fill'){floodFill(x,y);return;}
+  if(currentTool==='river'||currentTool==='road'){startPath(x,y);isPainting=true;return;}
+  if(MARKER_TYPES[currentTool]){placeMarker(x,y);return;}
+  if(currentTool==='label'){placeLabel(x,y);return;}
+}
+
+function onMove(e){
+  const {x,y}=getCanvasPos(e);
+  // Update status bar
+  const {x:wx,y:wy}=s2wCell(x,y);
+  document.getElementById('sb-pos').textContent=`${wx},${wy}`;
+  if(wx>=0&&wx<GRID&&wy>=0&&wy<GRID){
+    document.getElementById('sb-biome').textContent=BIOMES[terrain[wy*GRID+wx]]?.name||'—';
+  }
+
+  if(panDrag.active){
+    viewX=panDrag.ox+(x-panDrag.sx);
+    viewY=panDrag.oy+(y-panDrag.sy);
+    scheduleRender();return;
+  }
+  if(!isPainting)return;
+  if(currentTool==='paint'||currentTool==='erase')paintAt(x,y);
+  if(currentTool==='river'||currentTool==='road')extendPath(x,y);
+}
+
+function onUp(e){
+  if(panDrag.active){panDrag.active=false;wrap.classList.remove('dragging');}
+  if(isPainting){
+    if(currentTool==='river'||currentTool==='road')endPath();
+    isPainting=false;
+  }
+}
+
+// Scroll to zoom
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const {x,y}=getCanvasPos(e);
+  const factor=e.deltaY<0?1.15:0.87;
+  const nz=Math.max(0.5,Math.min(20,viewZoom*factor));
+  viewX=x-(x-viewX)*(nz/viewZoom);
+  viewY=y-(y-viewY)*(nz/viewZoom);
+  viewZoom=nz;
+  document.getElementById('sb-zoom').textContent=Math.round(viewZoom*100)+'%';
+  scheduleRender();
+},{passive:false});
+
+// ══════════════════════════════════════════════════════════
+// GENERATE WORLD (Perlin noise)
+// ══════════════════════════════════════════════════════════
+function generateWorld(){
+  saveHistory();
+  const seed=Math.floor(Math.random()*0xffffff);
+  const pe=new Perlin(seed);
+  const pm=new Perlin(seed^0xabcd);
+  const pt=new Perlin(seed^0xef01);
+  const seaLevel=0.42;
+
+  for(let y=0;y<GRID;y++){
+    for(let x=0;x<GRID;x++){
+      const nx=x/GRID,ny=y/GRID;
+      const cx=(nx-0.5)*2,cy=(ny-0.5)*2;
+      const dist=Math.sqrt(cx*cx+cy*cy);
+      const falloff=Math.max(0,1-Math.pow(dist,1.4)*1.1);
+      const e=pe.o(nx*3.5,ny*3.5)*falloff*0.9+0.05;
+      const m=(pm.o(nx*4,ny*4)+1)*0.5;
+      const t=(pt.o(nx*2,ny*2)+1)*0.5*(1-Math.abs(cy)*0.4);
+
+      let bi;
+      if(e<seaLevel-0.18)bi=0;       // deep ocean
+      else if(e<seaLevel-0.06)bi=1;  // ocean
+      else if(e<seaLevel)bi=2;        // shallow
+      else if(e<seaLevel+0.025)bi=3;  // beach
+      else if(e>seaLevel+0.42)bi=16;  // snow peak
+      else if(e>seaLevel+0.32)bi=15;  // mountain
+      else if(e>seaLevel+0.22)bi=14;  // hills
+      else{
+        if(t<0.22){bi=m>0.5?13:12;}   // taiga/tundra
+        else if(t>0.78){bi=m>0.6?7:m>0.3?8:10;} // jungle/savanna/arid
+        else{bi=m<0.22?9:m<0.38?4:m<0.58?5:11;} // desert/grass/forest/swamp
+      }
+      terrain[y*GRID+x]=bi;
+    }
+  }
+
+  // Add rivers
+  pathLayer=pathLayer.filter(p=>p.type!=='river'); // clear old rivers
+  for(let r=0;r<8;r++){
+    let rx=Math.floor(Math.random()*GRID*0.6+GRID*0.2);
+    let ry=Math.floor(Math.random()*GRID*0.6+GRID*0.2);
+    const pts=[{x:rx,y:ry}];
+    for(let s=0;s<80;s++){
+      // Flow toward ocean (random walk biased downhill)
+      const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+      const d=dirs[Math.floor(Math.random()*4)];
+      rx+=d[0];ry+=d[1];
+      if(rx<0||rx>=GRID||ry<0||ry>=GRID)break;
+      pts.push({x:rx,y:ry});
+      if(terrain[ry*GRID+rx]<=2)break;
+    }
+    if(pts.length>5)pathLayer.push({type:'river',points:pts});
+  }
+
+  scheduleRender();
+}
+
+// ══════════════════════════════════════════════════════════
+// HISTORY (undo)
+// ══════════════════════════════════════════════════════════
+function saveHistory(){
+  history.push({
+    terrain:new Uint8Array(terrain),
+    pathLayer:JSON.parse(JSON.stringify(pathLayer)),
+    markers:JSON.parse(JSON.stringify(markers)),
+    labelsList:JSON.parse(JSON.stringify(labelsList)),
+  });
+  if(history.length>20)history.shift();
+}
+function undo(){
+  if(!history.length)return;
+  const h=history.pop();
+  terrain=h.terrain;pathLayer=h.pathLayer;markers=h.markers;labelsList=h.labelsList;
+  updateLabelsList();scheduleRender();
+}
+
+// ══════════════════════════════════════════════════════════
+// UI SETUP
+// ══════════════════════════════════════════════════════════
+// Biome palette
+function buildBiomePalette(){
+  const grid=document.getElementById('biome-grid');
+  BIOMES.forEach((b,i)=>{
+    const sw=document.createElement('div');sw.className='bswatch'+(i===currentBiome?' sel':'');
+    sw.style.background=`rgb(${b.r},${b.g},${b.b})`;
+    sw.innerHTML=`<div class="bs-tip">${b.icon} ${b.name}</div>`;
+    sw.addEventListener('click',()=>{
+      currentBiome=i;
+      document.querySelectorAll('.bswatch').forEach((s,j)=>s.classList.toggle('sel',j===i));
+      // Switch to paint tool
+      setTool('paint');
+    });
+    grid.appendChild(sw);
+  });
+}
+
+// Tool selection
+function setTool(id){
+  currentTool=id;
+  document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('active',t.dataset.tool===id));
+  wrap.classList.toggle('pan-mode',id==='pan');
+  canvas.style.cursor=id==='pan'?'grab':id==='fill'?'cell':'crosshair';
+}
+document.querySelectorAll('.tool').forEach(t=>{
+  t.addEventListener('click',()=>setTool(t.dataset.tool));
+});
+
+// Brush size
+document.getElementById('brush-size').addEventListener('input',e=>{
+  brushSize=parseInt(e.target.value);
+  document.getElementById('brush-val').textContent=brushSize;
+});
+document.getElementById('brush-shape').addEventListener('change',e=>{brushShape=e.target.value;});
+
+// Layers
+document.querySelectorAll('.layer-item').forEach(li=>{
+  li.querySelector('.layer-vis').addEventListener('click',e=>{
+    e.stopPropagation();
+    const layer=li.dataset.layer;
+    visibleLayers[layer]=!visibleLayers[layer];
+    li.querySelector('.layer-vis').textContent=visibleLayers[layer]?'👁':'🚫';
+    li.style.opacity=visibleLayers[layer]?1:0.4;
+    scheduleRender();
+  });
+  li.addEventListener('click',()=>{
+    document.querySelectorAll('.layer-item').forEach(x=>x.classList.remove('active'));
+    li.classList.add('active');
+  });
+});
+
+// Top buttons
+document.getElementById('btn-generate').addEventListener('click',generateWorld);
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  saveHistory();terrain.fill(1);pathLayer=[];markers=[];labelsList=[];
+  updateLabelsList();scheduleRender();
+});
+document.getElementById('btn-undo').addEventListener('click',undo);
+document.getElementById('btn-save').addEventListener('click',()=>{
+  // Render to temp canvas without vignette
+  const tmp=document.createElement('canvas');tmp.width=canvas.width;tmp.height=canvas.height;
+  const tc=tmp.getContext('2d');tc.drawImage(canvas,0,0);
+  const a=document.createElement('a');a.href=tmp.toDataURL('image/png');
+  a.download='mapa-somos.png';a.click();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.target===document.getElementById('world-title'))return;
+  const keys={'p':'paint','f':'fill','e':'erase','r':'river','w':'road',
+    'c':'city','v':'village','l':'label','z':null};
+  if(e.key.toLowerCase()==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undo();return;}
+  if(keys[e.key.toLowerCase()]!==undefined&&keys[e.key.toLowerCase()]!==null){
+    setTool(keys[e.key.toLowerCase()]);
+  }
+  if(e.key==='Escape'){setTool('pan');}
+});
+
+// ══════════════════════════════════════════════════════════
+// INPUT MODAL
+// ══════════════════════════════════════════════════════════
+let inputCallback=null;
+function showInputModal(title,placeholder,callback){
+  inputCallback=callback;
+  document.getElementById('input-title').textContent=title;
+  document.getElementById('input-text').placeholder=placeholder;
+  document.getElementById('input-text').value=generateRandomName();
+  document.getElementById('input-modal').classList.add('show');
+  setTimeout(()=>document.getElementById('input-text').focus(),50);
+}
+function hideInputModal(val){
+  document.getElementById('input-modal').classList.remove('show');
+  if(inputCallback)inputCallback(val||null);
+  inputCallback=null;
+}
+document.getElementById('input-ok').addEventListener('click',()=>hideInputModal(document.getElementById('input-text').value.trim()));
+document.getElementById('input-cancel').addEventListener('click',()=>hideInputModal(null));
+document.getElementById('input-text').addEventListener('keydown',e=>{
+  if(e.key==='Enter')hideInputModal(document.getElementById('input-text').value.trim());
+  if(e.key==='Escape')hideInputModal(null);
+});
+
+// ══════════════════════════════════════════════════════════
+// RANDOM NAME GENERATOR
+// ══════════════════════════════════════════════════════════
+const PRE=['Aer','Bel','Cal','Dun','El','Fal','Gor','Hal','Ir','Kal','Lor','Mor','Nar','Or','Pel','Ril','Sal','Tal','Val','Wyn','Zar'];
+const SUF=['ador','amar','anthor','aria','avar','driel','edor','enia','eryn','ian','idor','ilan','ion','mor','nath','or','oria','orin','oth','undel','uras'];
+function generateRandomName(){return PRE[Math.floor(Math.random()*PRE.length)]+SUF[Math.floor(Math.random()*SUF.length)];}
+
+// ══════════════════════════════════════════════════════════
+// LABELS LIST (right panel)
+// ══════════════════════════════════════════════════════════
+function updateLabelsList(){
+  const list=document.getElementById('labels-list');list.innerHTML='';
+  const all=[
+    ...markers.map((m,i)=>({...m,_type:'marker',_i:i,icon:MARKER_TYPES[m.type]?.icon||'📍'})),
+    ...labelsList.map((l,i)=>({...l,_type:'label',_i:i,icon:'🏷',name:l.text})),
+  ];
+  if(!all.length){list.innerHTML='<div style="font-size:9px;color:rgba(200,168,80,0.2);padding:8px;letter-spacing:1px;font-family:Cinzel,serif;">Añade lugares al mapa</div>';return;}
+  all.forEach(item=>{
+    const div=document.createElement('div');div.className='label-item';
+    div.innerHTML=`<span class="li-icon">${item.icon}</span><span class="li-name">${item.name||''}</span><span class="li-del">✕</span>`;
+    div.addEventListener('click',e=>{
+      if(e.target.classList.contains('li-del')){
+        saveHistory();
+        if(item._type==='marker')markers.splice(item._i,1);
+        else labelsList.splice(item._i,1);
+        updateLabelsList();scheduleRender();return;
+      }
+      // Pan to item
+      viewX=canvas.width/2-item.x*viewZoom;
+      viewY=canvas.height/2-item.y*viewZoom;
+      scheduleRender();
+    });
+    list.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+buildBiomePalette();
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    resizeCanvas();
+    // Fit world to screen
+    const cs=Math.min(wrap.clientWidth,wrap.clientHeight)/GRID*0.9;
+    viewZoom=cs;
+    viewX=(wrap.clientWidth-GRID*cs)/2;
+    viewY=(wrap.clientHeight-GRID*cs)/2;
+    generateWorld();
+    updateLabelsList();
+  },100);
+});
+</script>
+</body>
+</html>
